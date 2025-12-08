@@ -37,6 +37,13 @@ import matplotlib as mpl
 mpl.use("Qt5Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.colors import (
+    LinearSegmentedColormap,
+    Normalize,
+    ListedColormap,
+    BoundaryNorm,
+)
+from matplotlib.cm import ScalarMappable
 import pyvista as pv
 import numpy as np
 import seaborn as sns
@@ -940,7 +947,7 @@ def plot_abricocoda_diff_stack(
     Differential stack plot between a scene WITH a shelter and the same scene WITHOUT a shelter,
     for three categories at each probe and time:
       C1: Abricocoda & shaded
-      C2: Abricocoda & sun
+      C2: Abricocoda & sun (not used)
       C3: Not Abricocoda & shaded
 
     We plot Δ = WITH − WITHOUT as:
@@ -1023,6 +1030,7 @@ def plot_abricocoda_diff_stack(
     dCpos_sum = (dC1_pos + dC2_pos + dC3_pos)
     dCneg_sum = (dC1_neg + dC2_neg + dC3_neg)
 
+    # dataframe with statistics -> could be returned
     df = pd.DataFrame({
         'A_with_C1': A_with_C1, 'A_with_C2': A_with_C2, 'A_with_C3': A_with_C3,
         'A_without_C1': A_without_C1, 'A_without_C2': A_without_C2, 'A_without_C3': A_without_C3,
@@ -1031,7 +1039,6 @@ def plot_abricocoda_diff_stack(
     }, index=out_time)
 
     # --- Plot ---
-    created_fig = False
     fig, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')
 
     c1, c2, c3 = colors
@@ -1085,10 +1092,10 @@ def plot_abricocoda_diff_stack(
     ax.set_xlim([out_time[0], out_time[-1]])
 
     # Symmetric y-limits around 0
-    y_top = max(
-        float(pd.to_numeric(dCpos_sum, errors='coerce').max(skipna=True) or 0.0),
-        float(pd.to_numeric(dCneg_sum, errors='coerce').max(skipna=True) or 0.0)
-    )
+    # y_top = max(
+    #     float(pd.to_numeric(dCpos_sum, errors='coerce').max(skipna=True) or 0.0),
+    #     float(pd.to_numeric(dCneg_sum, errors='coerce').max(skipna=True) or 0.0)
+    # )
     # if np.isfinite(y_top) and y_top > 0:
     #     ax.set_ylim(-1.05 * y_top, 1.05 * y_top)
     # else:
@@ -1112,7 +1119,332 @@ def plot_abricocoda_diff_stack(
     fig.canvas.manager.set_window_title('abricocoda_diff_stack ' + scene.general_dict['case_name']
                                         + ' - ' + scene_ref.general_dict['case_name'])
 
+def plot_abricocoda_diff_stack2(
+    scene,
+    scene_ref,
+    tree,
+    title="Differential stacked areas (with − without) by category",
+    figsize=(8, 5),
+    fontsize=12,
+    area_factor=1.0,          # area each probe represents [m²]
+    ylim='auto',
+    colors=('forestgreen', 'royalblue', 'orange'),  # (A&shade base, A&sun base, ~A&shade base)
+    alpha_pos=0.95,
+    show_night=True,
+    sunrise_time_tuple=(6, 30),
+    sunset_time_tuple=(20, 30),
+    max_delta_pet_C1=None,    # user-specified max |ΔPET| for C1 (in °C)
+    max_delta_pet_C3=None,    # user-specified max |ΔPET| for C3 (in °C)
+    save=False,
+    save_folderpath=''
+):
+    """
+    x-axis: time
+    y-axis: Δ area [m²] of probes entering categories compared to the reference scene.
 
+    Categories on the WITH scene:
+      C1: Abricocoda & shade      (A_with & S_with)
+      C2: Abricocoda & no shade   (not used)
+      C3: Not Abricocoda & shade  (~A_with & S_with)
+
+    For each probe and time:
+      ΔPET_signed = PET_with − PET_tree
+
+      - For C1: ΔPET_signed ≤ 0  (range [−max_C1, 0])
+      - For C3: ΔPET_signed ≥ 0  (range [0, max_C3])
+
+    We restrict ΔPET to probes that newly enter each category (WITH vs WITHOUT).
+    For plotting we use |ΔPET| to define bins (normalized 0..1), but the colorbars
+    are in signed ΔPET units:
+
+      - C1 colorbar: [-max_C1, 0], colormap reversed so dark = more negative.
+      - C3 colorbar: [0, max_C3].
+
+    max_delta_pet_C1 / max_delta_pet_C3 (if given) set max_C1 / max_C3
+    used for normalization and colorbar limits. Values above those are saturated.
+    """
+
+    if any(s is None for s in (scene, scene_ref, tree)):
+        raise ValueError("Provide scene, scene_ref, and tree.")
+    if area_factor <= 0:
+        raise ValueError("area_factor must be positive.")
+
+    # --- Time axis (must match) ---
+    t_with = scene.time_management_dict['target_date_list'].tz_localize(None)
+    t_wo   = scene_ref.time_management_dict['target_date_list'].tz_localize(None)
+    t_tree = tree.time_management_dict['target_date_list'].tz_localize(None)
+    if not (t_with.equals(t_wo) and t_with.equals(t_tree)):
+        raise ValueError("Time axes differ across inputs.")
+    out_time = t_with
+
+    # --- Probe names (must match) ---
+    def _probe_names(scene_obj):
+        keys = list(scene_obj.output_dict['probe'].keys())
+        return sorted({k[0] for k in keys if k[-1] == 'comfort_index'})
+
+    names_with = _probe_names(scene)
+    names_wo   = _probe_names(scene_ref)
+    if not names_with:
+        raise ValueError("No comfort_index probes in 'scene'.")
+    if set(names_with) != set(names_wo):
+        raise ValueError("Probe names must match between with/without scenes.")
+
+    # --- Tree comfort series (first comfort_index found) ---
+    tree_keys = list(tree.output_dict['probe'].keys())
+    tree_key = next(k for k in tree_keys if k[-1] == 'comfort_index')
+    tree_ser = pd.Series(
+        np.asarray(tree.output_dict['probe'][tree_key][-1]).reshape(-1),
+        index=out_time,
+        name='tree'
+    )
+
+    # --- Build comfort and sun DataFrames for WITH and WITHOUT ---
+    col_comfort_with, col_sun_with = {}, {}
+    col_comfort_wo,   col_sun_wo   = {}, {}
+
+    for name in names_with:
+        col_comfort_with[name] = np.asarray(
+            scene.output_dict['probe'][(name, 'comfort_index')][-1]
+        ).reshape(-1)
+        col_sun_with[name] = np.asarray(
+            scene.output_dict['probe'][(name, 'sun_exposure')][-1]
+        ).reshape(-1)
+
+        col_comfort_wo[name] = np.asarray(
+            scene_ref.output_dict['probe'][(name, 'comfort_index')][-1]
+        ).reshape(-1)
+        col_sun_wo[name] = np.asarray(
+            scene_ref.output_dict['probe'][(name, 'sun_exposure')][-1]
+        ).reshape(-1)
+
+    comfort_with = pd.DataFrame(col_comfort_with, index=out_time)
+    comfort_wo   = pd.DataFrame(col_comfort_wo,   index=out_time)
+    sun_with     = pd.DataFrame(col_sun_with,     index=out_time)
+    sun_wo       = pd.DataFrame(col_sun_wo,       index=out_time)
+
+    # --- Category masks for WITH and WITHOUT ---
+    A_with = comfort_with.le(tree_ser, axis=0)  # Abricocoda (with)
+    S_with = (sun_with == 0)                    # shade (with)
+    C1_with = (A_with & S_with)                 # Abricocoda & shade
+    C3_with = (~A_with & S_with)                # Not Abricocoda & shade
+
+    A_wo = comfort_wo.le(tree_ser, axis=0)      # Abricocoda (without)
+    S_wo = (sun_wo == 0)                        # shade (without)
+    C1_wo = (A_wo & S_wo)
+    C3_wo = (~A_wo & S_wo)
+
+    # --- Signed ΔPET to tree: PET_with - PET_tree ---
+    delta_pet_signed = comfort_with.sub(tree_ser, axis=0)
+
+    # --- Probes that *enter* C1 / C3 (with vs without) ---
+    new_C1 = (C1_with.astype(int) - C1_wo.astype(int)).clip(lower=0).astype(bool)
+    new_C3 = (C3_with.astype(int) - C3_wo.astype(int)).clip(lower=0).astype(bool)
+
+    # ΔPET restricted to new C1 / C3 probes (signed)
+    delta_pet_C1_signed = delta_pet_signed.where(new_C1)   # should be ≤ 0
+    delta_pet_C3_signed = delta_pet_signed.where(new_C3)   # should be ≥ 0
+
+    # Magnitudes for binning
+    delta_pet_C1_mag = delta_pet_C1_signed.abs()
+    delta_pet_C3_mag = delta_pet_C3_signed.clip(lower=0.0)
+
+    # Data maxima (from actual values)
+    data_max_C1 = float(np.nanmax(delta_pet_C1_mag)) if np.any(~np.isnan(delta_pet_C1_mag)) else 0.0
+    data_max_C3 = float(np.nanmax(delta_pet_C3_mag)) if np.any(~np.isnan(delta_pet_C3_mag)) else 0.0
+
+    # User-specified maxima (if any) override data maxima for scaling
+    max_C1 = float(max_delta_pet_C1) if max_delta_pet_C1 is not None else data_max_C1
+    max_C3 = float(max_delta_pet_C3) if max_delta_pet_C3 is not None else data_max_C3
+
+    if max_C1 < 0 or max_C3 < 0:
+        raise ValueError("max_delta_pet_C1 and max_delta_pet_C3 must be non-negative if provided.")
+    if max_C1 <= 0 and max_C3 <= 0:
+        raise ValueError("All ΔPET values are zero/NaN and no positive maxima were provided.")
+
+    # Normalized magnitudes in [0,1] for binning (with saturation if > max)
+    if max_C1 > 0:
+        norm_C1 = (delta_pet_C1_mag / max_C1).clip(upper=1.0)
+    else:
+        norm_C1 = delta_pet_C1_mag * 0.0
+
+    if max_C3 > 0:
+        norm_C3 = (delta_pet_C3_mag / max_C3).clip(upper=1.0)
+    else:
+        norm_C3 = delta_pet_C3_mag * 0.0
+
+    # --- Binning: 100 bins in [0,1] ---
+    bin_edges   = np.linspace(0.0, 1.0, 5)  # 101 edges → 100 bins
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    n_times     = len(out_time)
+    n_bins      = 4
+
+    area_bins_C1 = np.zeros((n_times, n_bins), dtype=float)
+    area_bins_C3 = np.zeros((n_times, n_bins), dtype=float)
+
+    for i in range(n_times):
+        vals_C1 = norm_C1.iloc[i].dropna().to_numpy()
+        if vals_C1.size > 0:
+            counts_C1, _ = np.histogram(vals_C1, bins=bin_edges)
+            area_bins_C1[i, :] = counts_C1 * float(area_factor)
+
+        vals_C3 = norm_C3.iloc[i].dropna().to_numpy()
+        if vals_C3.size > 0:
+            counts_C3, _ = np.histogram(vals_C3, bins=bin_edges)
+            area_bins_C3[i, :] = counts_C3 * float(area_factor)
+
+    # total C1 area per time step (for black delineation line)
+    c1_boundary = area_bins_C1.sum(axis=1)
+
+    # --- Colormaps and gradients ---
+    base_green, _, base_yellow = colors
+
+    cmap_green_full  = LinearSegmentedColormap.from_list("cmap_green_full",  ["white", base_green])
+    cmap_yellow_full = LinearSegmentedColormap.from_list("cmap_yellow_full", ["white", base_yellow])
+
+    def truncate_cmap(cmap, minval=0., maxval=1.0, n=256):
+        return LinearSegmentedColormap.from_list(
+            f"trunc_{cmap.name}",
+            cmap(np.linspace(minval, maxval, n))
+        )
+
+    cmap_green  = truncate_cmap(cmap_green_full)
+    cmap_yellow = truncate_cmap(cmap_yellow_full)
+
+    colors_bins_C1 = [cmap_green(c)  for c in bin_centers]   # high c → darker green
+    colors_bins_C3 = [cmap_yellow(c) for c in bin_centers]   # high c → darker yellow
+
+    # --- x positions as dates → numbers for bar width ---
+    x_num = mdates.date2num(out_time.to_pydatetime())
+    if len(x_num) > 1:
+        width = np.min(np.diff(x_num))
+    else:
+        width = 1.0
+
+    # --- Plot ---
+    fig, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')
+
+    # Optional night background
+    if show_night:
+        sunrise_minutes = sunrise_time_tuple[0] * 60 + sunrise_time_tuple[1]
+        sunset_minutes  = sunset_time_tuple[0] * 60 + sunset_time_tuple[1]
+        time_minutes    = out_time.hour * 60 + out_time.minute
+        night_mask = (time_minutes < sunrise_minutes) | (time_minutes >= sunset_minutes)
+
+        in_block = False
+        start_idx = None
+        for idx, is_night in enumerate(night_mask):
+            if is_night and not in_block:
+                in_block = True
+                start_idx = idx
+            elif not is_night and in_block:
+                in_block = False
+                ax.axvspan(out_time[start_idx], out_time[idx-1],
+                           color='gainsboro', alpha=0.3, zorder=0)
+        if in_block:
+            ax.axvspan(out_time[start_idx], out_time[len(out_time)-1],
+                       color='gainsboro', alpha=0.3, zorder=0)
+
+    # Draw stacked bars
+    for i, t_num in enumerate(x_num):
+        bottom = 0.0
+
+        # C1 bins (GREEN): bottom = largest |ΔPET| (dark), top = smallest (light)
+        for b in range(n_bins - 1, -1, -1):
+            h = area_bins_C1[i, b]
+            if h > 0:
+                ax.bar(
+                    t_num, h, width=width,
+                    bottom=bottom,
+                    color=colors_bins_C1[b],
+                    alpha=alpha_pos,
+                    align='center',
+                    edgecolor='none'
+                )
+                bottom += h
+
+        # C3 bins (YELLOW): low→high |ΔPET|, light→dark
+        for b in range(n_bins):
+            h = area_bins_C3[i, b]
+            if h > 0:
+                ax.bar(
+                    t_num, h, width=width,
+                    bottom=bottom,
+                    color=colors_bins_C3[b],
+                    alpha=alpha_pos,
+                    align='center',
+                    edgecolor='none'
+                )
+                bottom += h
+
+    # --- Black line delineating C1/C3 boundary ---
+    ax.plot(out_time, c1_boundary, color='black', linewidth=2, zorder=6)
+
+    # Axes / formatting
+    ax.set_ylabel('Δ area [m²]', fontsize=fontsize)
+    ax.set_xlabel('Local time [h]', fontsize=fontsize)
+    ax.tick_params(axis='both', labelsize=fontsize)
+    ax.grid(True)
+
+    ax.xaxis_date()
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=3, maxticks=8))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H"))
+    ax.set_xlim(x_num[0] - 0.5 * width, x_num[-1] + 0.5 * width)
+
+    total_area = (area_bins_C1 + area_bins_C3).sum(axis=1)
+    y_top = float(np.nanmax(total_area) or 0.0)
+    if ylim == 'auto':
+        if np.isfinite(y_top) and y_top > 0:
+            ax.set_ylim(0.0, 1.05 * y_top)
+        else:
+            ax.set_ylim(0.0, 1.0)
+    else:
+        ax.set_ylim(ylim)
+
+    if title:
+        ax.set_title(title, fontsize=fontsize)
+
+    # --- Colorbars for ΔPET (signed ranges) ---
+    # Build discrete color list: negative side (reversed green), positive side (yellow)
+    colors_neg = list(colors_bins_C1[::-1]) if max_C1 > 0 else []
+    colors_pos = list(colors_bins_C3) if max_C3 > 0 else []
+
+    if colors_neg or colors_pos:
+        colors_combined = colors_neg + colors_pos
+        cmap_combined = ListedColormap(colors_combined)
+
+        boundaries = []
+        if max_C1 > 0:
+            bounds_neg = np.linspace(-max_C1, 0.0, n_bins + 1)
+            boundaries.append(bounds_neg)
+        if max_C3 > 0:
+            bounds_pos = np.linspace(0.0, max_C3, n_bins + 1)
+            if max_C1 > 0:
+                # drop duplicate 0
+                bounds_pos = bounds_pos[1:]
+            boundaries.append(bounds_pos)
+
+        boundaries = np.concatenate(boundaries)
+        norm_combined = BoundaryNorm(boundaries, cmap_combined.N)
+
+        sm = ScalarMappable(norm=norm_combined, cmap=cmap_combined)
+        sm.set_array([])
+
+        cbar = fig.colorbar(sm, ax=ax, pad=0.02)
+        cbar.set_label("ΔPET [°C]", fontsize=fontsize - 1)
+        cbar.ax.tick_params(labelsize=fontsize - 2)
+
+    if save:
+        save_path = Path(save_folderpath)
+        save_path.mkdir(parents=True, exist_ok=True)
+        for ext in ['png', 'pdf']:
+            filename = (
+                f"abricocoda_diff_stack_bins_{scene.general_dict['case_name']}-"
+                f"{scene_ref.general_dict['case_name']}.{ext}"
+            )
+            plt.savefig(save_path / filename, bbox_inches='tight')
+
+    fig.canvas.manager.set_window_title("abricocoda_diff_stack_bins " + scene.general_dict['case_name']
+        + " - " + scene_ref.general_dict['case_name'])
 
 def plot_shelter_shade_quality(
     scene_list,
