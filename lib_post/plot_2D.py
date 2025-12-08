@@ -67,8 +67,10 @@ def plot_geometry(scene):
 
 
 def plot_statistics(scene_list,
+                    xlim='auto',
+                    ylim='auto',
                     remove_legend=False,
-                    figsize=(12, 7),
+                    figsize=(6, 5),
                     fontsize=12,
                     sunrise_time_tuple=(6,30),
                     sunset_time_tuple=(20,30),
@@ -94,28 +96,41 @@ def plot_statistics(scene_list,
         sns.lineplot(df_glob, palette='Greys', dashes=False, markers=True)
 
         # add night background shading
-        sunrise_time = sunrise_time_tuple[0] * 60 + sunrise_time_tuple[1]
-        sunset_time = sunset_time_tuple[0] * 60 + sunset_time_tuple[1]
-        night_mask = np.logical_or(out_time.hour < sunrise_time, out_time.hour >= sunset_time)
+        sunrise_m = sunrise_time_tuple[0] * 60 + sunrise_time_tuple[1]
+        sunset_m = sunset_time_tuple[0] * 60 + sunset_time_tuple[1]
+        minutes_since_midnight = out_time.hour * 60 + out_time.minute
+        night_mask = (minutes_since_midnight < sunrise_m) | (minutes_since_midnight >= sunset_m)
+
         ax.fill_between(
-            out_time, 0, 1,
-            where=night_mask,
-            color='gainsboro',
-            alpha=0.8,
-            transform=ax.get_xaxis_transform()
+                out_time, 0, 1,
+                where=night_mask,
+                color='gainsboro',
+                alpha=0.8,
+                transform=ax.get_xaxis_transform()
         )
 
         # configure axis
         ax.grid(True)
-        if remove_legend and ax.get_legend():
-            ax.get_legend().remove()
-        ax.set_xlabel('Local time [h]', fontsize=fontsize)
-        ax.set_ylabel('r$n_{iter}$', fontsize=fontsize)
+        if remove_legend:
+            leg = ax.get_legend()
+            if leg:
+                leg.remove()
+
+        ax.set_xlabel('Local time [d]', fontsize=fontsize)
+        ax.set_ylabel('$n_{iter}$', fontsize=fontsize)
         ax.tick_params(axis='both', labelsize=fontsize)
-        ax.set_yticks(list(range(11)))
-        ax.set_xlim([out_time[0], out_time[-1]])
-        ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=3, maxticks=8))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H"))
+
+        if xlim != 'auto':
+            ax.set_xlim(xlim)
+        else:
+            ax.set_xlim([out_time[0], out_time[-1]])
+
+        ax.xaxis.set_major_locator(mdates.HourLocator(interval=24))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+        ax.xaxis.set_minor_locator(mdates.MinuteLocator(interval=60))
+
+        if ylim != 'auto':
+            ax.set_ylim(ylim)
 
         # save if needed
         if save:
