@@ -3,16 +3,14 @@ import sys
 sys.path.insert(1, r'../lib_imotep')
 import pickle as pkl
 
-from lib_post.lib_2D_plots import *
-from lib_post.lib_3D_visualization import visualize_fields
+from lib_post.plot_2D import *
+from lib_post.visu_3D import visualize_fields
 
 # ----------------------------------------------------------------------------------------------------------------------
 # load results
 scene_folderpath_root = '../output/'
 
-# scene_foldername_list = ["exposed", "exposed_old"]
-scene_foldername_list = ["shelter", "shelter_old"]
-# scene_foldername_list = ["shelter_trans", "shelter_trans_old"]
+scene_foldername_list = ["urban_scene"]
 scene_list = []
 for scene_foldername in scene_foldername_list:
     with open(scene_folderpath_root + scene_foldername + '/imotep.pkl', 'rb') as data:
@@ -25,81 +23,82 @@ sunset_time_tuple = (19, 45)
 
 # save figures
 save = False
-
-# # ----------------------------------------------------------------------------------------------------------------------
-# # plot weather variables
-# # x-axis: time
-# # y-axis: variable ('air_temperature', 'global_horizontal_radiation',  'direct_normal_radiation', 'diffuse_horizontal_radiation', 'relative_humidity', 'sky_temperature', 'wind_direction', 'wind_speed')
-# plot_weather(scene=scene_list[0],
-#              save=save,
-#              sunrise_time_tuple=sunrise_time_tuple,
-#              sunset_time_tuple=sunset_time_tuple,
-#              save_folderpath=scene_folderpath_root+scene_foldername_list[0]+'/graphs/')
+save_foldername = scene_foldername_list[0]+'/graphs/'
 
 # ----------------------------------------------------------------------------------------------------------------------
-# comparative plot of surface averaged variables
+# comparative plot of airzone variables
 # x-axis: time
-# y-axis: variable ('tmrt', 'comfort_index', 'sw_flux_arr', 'lw_flux_arr')
+# y-axis: variable ('hc', 'temperature', 'wind_speed')
 plot_comparative(scene_list=scene_list,
-                 out_type='surface_averaged',
-                 obj_name='floor_inside_front',
-                 var_name='avg_sw_rad_flux',
+                 out_type='airzone',
+                 obj_name='outdoor',
+                 var_name='temperature',
                  legend_label_list=scene_foldername_list,
-                 # ylim=[33, 72],
                  figsize=(9, 6),
                  fontsize=18,
                  sunrise_time_tuple=sunrise_time_tuple,
                  sunset_time_tuple=sunset_time_tuple,
                  save=save,
-                 save_folderpath=scene_folderpath_root+scene_foldername_list[0]+'/graphs/')
+                 save_folderpath=scene_folderpath_root+save_foldername)
+
+# ----------------------------------------------------------------------------------------------------------------------
+# comparative plot of surface-averaged variables
+# x-axis: time
+# y-axis: variable ('avg_temperature', 'avg_lw_rad_flux', 'avg_sw_rad_flux', 'avg_conv_flux', 'avg_cond_flux',
+# 'avg_lw_radiosity', 'avg_sw_radiosity')
+plot_comparative(scene_list=scene_list,
+                 out_type='surface_averaged',
+                 obj_name='floor_inside_shelter_front',
+                 var_name='avg_sw_rad_flux',
+                 legend_label_list=scene_foldername_list,
+                 figsize=(9, 6),
+                 fontsize=18,
+                 sunrise_time_tuple=sunrise_time_tuple,
+                 sunset_time_tuple=sunset_time_tuple,
+                 save=save,
+                 save_folderpath=scene_folderpath_root+save_foldername)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # comparative plot of probe variables
 # x-axis: time
-# y-axis: variable ('tmrt', 'comfort_index', 'sw_flux_arr', 'lw_flux_arr')
+# y-axis: variable ('tmrt', 'comfort_index', 'sw_flux_arr', 'lw_flux_arr', 'sun_exposure')
 plot_comparative(scene_list=scene_list,
                  out_type='probe',
-                 obj_name='probe_0',
+                 obj_name='plane_us_0',
                  var_name='tmrt',
                  legend_label_list=scene_foldername_list,
-                 # ylim=[33, 72],
                  figsize=(9, 6),
                  fontsize=18,
                  sunrise_time_tuple=sunrise_time_tuple,
                  sunset_time_tuple=sunset_time_tuple,
                  save=save,
-                 save_folderpath=scene_folderpath_root+scene_foldername_list[0]+'/graphs/')
+                 save_folderpath=scene_folderpath_root+save_foldername)
 
+# ----------------------------------------------------------------------------------------------------------------------
+# plot weather variables
+# x-axis: time
+# y-axis: variable ('air_temperature', 'global_horizontal_radiation',  'direct_normal_radiation',
+# 'diffuse_horizontal_radiation', 'relative_humidity', 'sky_temperature', 'wind_direction', 'wind_speed')
+plot_weather(scene=scene_list[0],
+             sunrise_time_tuple=sunrise_time_tuple,
+             sunset_time_tuple=sunset_time_tuple,
+             save=save,
+             save_folderpath=scene_folderpath_root+save_foldername)
 
-plot_comparative(scene_list=scene_list,
-                 out_type='probe',
-                 obj_name='probe_0',
-                 var_name='sw_flux_arr',
-                 legend_label_list=scene_foldername_list,
-                 # ylim=[-10, 1050],
-                 figsize=(9, 6),
-                 fontsize=12,
-                 sunrise_time_tuple=sunrise_time_tuple,
-                 sunset_time_tuple=sunset_time_tuple,
-                 save=save,
-                 save_folderpath=scene_folderpath_root+scene_foldername_list[0]+'/graphs/')
-
-plot_comparative(scene_list=scene_list,
-                 out_type='probe',
-                 obj_name='probe_0',
-                 var_name='lw_flux_arr',
-                 legend_label_list=scene_foldername_list,
-                 # ylim=[380, 720],
-                 figsize=(9, 6),
-                 fontsize=12,
-                 sunrise_time_tuple=sunrise_time_tuple,
-                 sunset_time_tuple=sunset_time_tuple,
-                 save=save,
-                 save_folderpath=scene_folderpath_root+scene_foldername_list[0]+'/graphs/')
+# ----------------------------------------------------------------------------------------------------------------------
+# plot calculation statistics
+# x-axis: time
+# y-axis: number of iteration per timestep
+plot_statistics(scene_list=scene_list,
+                figsize=(9, 6),
+                fontsize=18,
+                save=save,
+                save_folderpath=scene_folderpath_root+save_foldername)
 
 # # ----------------------------------------------------------------------------------------------------------------------
-# # 3D visualization of the field results on surfaces and at probes
-# visualize_fields(scene_list[0], None)
+# 3D visualization of the field results on surfaces and/or at probes
+visualize_fields(scene=scene_list[0],
+                 tree=None)
 
 # Render all figures
 import matplotlib.pyplot as plt
