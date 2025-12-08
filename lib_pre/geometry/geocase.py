@@ -4,14 +4,14 @@ def geocase_urban_scene(sl, sw, sh, tr, th, bl, bh):
     case_dict = {}
 
     # shelter surface
-    shelter = geomorph_flat_shelter(x_min=-sl/2+7, x_max=sl/2+7,
+    shelter = geomorph_flat_shelter(x_min=-sl/2+8, x_max=sl/2+8,
                                     y_min=-sw/2, y_max=sw/2,
                                     h=sh,
                                     dx=5, dy=5)
     case_dict['shelter'] = shelter
 
     # tree surface
-    tree_base, tree_top = geomorph_tree([-10., 0., th], tr, 2, 3)
+    tree_base, tree_top = geomorph_tree([-10., 0., th], tr, 2, 6)
     case_dict['tree'] = tree_top
 
     # building surface
@@ -19,13 +19,13 @@ def geocase_urban_scene(sl, sw, sh, tr, th, bl, bh):
                                  y_0=-bl/2, y_1=bl/2,
                                  h_min=0., h_max=bh,
                                  front_left=True,
-                                 ds=2, dh=2)
+                                 ds=4, dh=4)
     case_dict['building'] = building
 
     # floor surface
     floor = geomorph_flat_floor(x_min=-20, x_max=20,
                                 y_min=-20, y_max=20,
-                                dx=2, dy=2)
+                                dx=4, dy=4)
 
 
     floor_inside_shelter, floor_outside = geogen_split_mesh(floor, tree_base)
