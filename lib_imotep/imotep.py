@@ -598,6 +598,7 @@ class IMOTEP:
         }
 
         # iterate through each output type in the definition dictionary
+        # modify the format of the keys of the output dict for eather in ordter to get (None , variable) format
         for o_type, o_def_list in output_def_dict.items():
             if o_type == 'weather':
                 if o_def_list == ['*']:
