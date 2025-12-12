@@ -1,6 +1,90 @@
 from geomorph import *
 
-def geocase_urban_scene(sl, sw, sh, tr, th, bl, bh):
+def geocase_tree(tr, th):
+    case_dict = {}
+
+    # tree surface
+    tree_base, tree_top = geomorph_tree([0., 0., th], tr, 2, 6)
+    case_dict['tree'] = tree_top
+
+    # floor surface
+    floor = geomorph_flat_floor(x_min=-20, x_max=20,
+                                y_min=-20, y_max=20,
+                                dx=4, dy=4)
+
+    floor_inside, floor_outside = geogen_split_mesh(floor, tree_base)
+
+    case_dict['floor_inside'] = floor_inside
+    case_dict['floor_outside'] = floor_outside
+
+    # buffer surface
+    buffer = geomorph_buffer(in_x_min=-20, in_x_max=20,
+                             in_y_min=-20, in_y_max=20,
+                             x_margin=20, y_margin=20)
+    case_dict['buffer'] = buffer
+
+    # probe sets
+    probeset = geogen_duplicate_and_zshift(floor, 1)
+    probeset = geogen_extract_points(probeset)
+
+    probeset, trash = geogen_split_points_external_footprint(probeset, floor)
+
+    probeset_inside, probeset_outside = geogen_split_points_internal(probeset, tree_base)
+
+    case_dict['probeset_inside'] = probeset_inside
+    case_dict['probeset_outside'] = probeset_outside
+
+    return case_dict
+
+def geocase_shelter_building(sl, sw, sh, bl, bh):
+    case_dict = {}
+
+    # shelter surface
+    shelter = geomorph_flat_shelter(x_min=-sl/2, x_max=sl/2,
+                                    y_min=-sw/2, y_max=sw/2,
+                                    h=sh,
+                                    dx=5, dy=5)
+    case_dict['shelter'] = shelter
+
+    # building surface
+    building = geomorph_building(x_0=20., x_1=20.,
+                                 y_0=-bl/2, y_1=bl/2,
+                                 h_min=0., h_max=bh,
+                                 front_left=True,
+                                 ds=4, dh=4)
+    case_dict['building'] = building
+
+    # floor surface
+    floor = geomorph_flat_floor(x_min=-20, x_max=20,
+                                y_min=-20, y_max=20,
+                                dx=4, dy=4)
+
+
+    floor_inside, floor_outside = geogen_split_mesh(floor, shelter)
+
+    case_dict['floor_inside'] = floor_inside
+    case_dict['floor_outside'] = floor_outside
+
+    # buffer surface
+    buffer = geomorph_buffer(in_x_min=-20, in_x_max=20,
+                             in_y_min=-20, in_y_max=20,
+                             x_margin=20, y_margin=20)
+    case_dict['buffer'] = buffer
+
+    # probe sets
+    probeset = geogen_duplicate_and_zshift(floor, 1)
+    probeset = geogen_extract_points(probeset)
+
+    probeset, trash = geogen_split_points_external_footprint(probeset, floor)
+
+    probeset_inside, probeset_outside = geogen_split_points_internal(probeset, shelter)
+
+    case_dict['probeset_inside'] = probeset_inside
+    case_dict['probeset_outside'] = probeset_outside
+
+    return case_dict
+
+def geocase_shelter_building_tree(sl, sw, sh, tr, th, bl, bh):
     case_dict = {}
 
     # shelter surface
@@ -28,8 +112,8 @@ def geocase_urban_scene(sl, sw, sh, tr, th, bl, bh):
                                 dx=4, dy=4)
 
 
-    floor_inside_shelter, floor_outside = geogen_split_mesh(floor, tree_base)
-    floor_inside_tree, floor_outside = geogen_split_mesh(floor_outside, shelter)
+    floor_inside_shelter, floor_outside = geogen_split_mesh(floor, shelter)
+    floor_inside_tree, floor_outside = geogen_split_mesh(floor_outside, tree_base)
 
     case_dict['floor_inside_tree'] = floor_inside_tree
     case_dict['floor_inside_shelter'] = floor_inside_shelter
@@ -67,7 +151,9 @@ if __name__ == '__main__':
     sl = 12; sw = 12; sh = 4 # shelter length, width, height
     tr = 6.01; th = 4. # tree radius, height
     bl=40; bh = 20. # building length, height
-    geocase_dict = geocase_urban_scene(sl, sw, sh, tr, th, bl, bh)
+    geocase_dict = geocase_tree(tr, th)
+    # geocase_dict = geocase_shetler_building(sl, sw, sh, bl, bh)
+    # geocase_dict = geocase_shetler_building_tree(sl, sw, sh, tr, th, bl, bh)
 
     plotter = pv.Plotter()
 
