@@ -6,10 +6,8 @@ import lib_pre.wind.wind_factors as wind_factors
 import lib_pre.geometry.geocase as geocase
 
 # load the geocase dictionary
-sl = 12; sw = 12; sh = 4 # shelter length, width, height
 tr = 6.01; th = 4. # tree radius, height
-bl=40; bh = 20. # building length, height
-geocase_dict = geocase.geocase_urban_scene(sl, sw, sh, tr, th, bl, bh)
+geocase_dict = geocase.geocase_tree(tr, th)
 
 pre_visualize = True
 
@@ -17,7 +15,7 @@ global_input_list = []
 
 ## dictionaries to fill in
 general_dict = {
-    'case_name'             : 'urban_scene',
+    'case_name'             : 'demo_tree',
     'dt'                    : 900,                  # [s] delta time between two timesteps
     'target_date'           : (2025, 7, 14),        # (year, month, day) # WARNING: DST not applied from 2038 onward !! -> use 2025 instead
     'warmup_days_num'       : 6,                    # number of days to simulate before target_date for initialization
@@ -72,21 +70,6 @@ airzone_def_dict_list = [
         'inflow_airzone_name'    : None
     },
     {
-        'name'                  : 'under_shelter',
-        'type'                  : 'balanced',
-        'ta_value'              : None,
-        'hc_type'               : 'correlation',
-        'hc_value'              : None,
-        'capacity'              : 1200., # [J/m^3/K]
-        'volume'                : sl*sw*sh, # [m^3]
-        'internal_load'         : 0, # [W]
-#                                                                               width,   length, height, num_dir
-        'effective_area_args'   : wind_factors.compute_effective_area_rectangle(sw,      sl,     sh,     8),
-#                                                                              met_height,   target_height,  roughness,  num_dir
-        'wind_factor_args'      : wind_factors.compute_wind_factor_flat_ground(10,           1,              0.5,      8),
-        'inflow_airzone_name'   : 'outdoor'
-    },
-    {
         'name'                  : 'under_tree',
         'type'                  : 'balanced',
         'ta_value'              : None,
@@ -100,20 +83,7 @@ airzone_def_dict_list = [
 #                                                                              met_height,   target_height,  roughness,  num_dir
         'wind_factor_args'      : wind_factors.compute_wind_factor_flat_ground(10,           1,              0.5,      8),
         'inflow_airzone_name'   : 'outdoor'
-    },
-    {
-            'name'                  : 'indoor',
-            'type'                  : 'fixed',  # 'fixed', 'weather', or 'balanced'
-            'ta_value'              : 25,
-            'hc_type'               : 'fixed',  # 'fixed', or 'correlation'
-            'hc_value'              : 4,
-            'capacity'              : None,  # [J/m^3/K]
-            'volume'                : None,  # [m^3]
-            'internal_load'         : None,  # [W]
-            'effective_area_args'   : None,
-            'wind_factor_args'      : None,
-            'inflow_airzone_name'   : None
-        },
+    }
 ]
 
 core_args_lib_dict = {
@@ -121,56 +91,25 @@ core_args_lib_dict = {
 #                                   [m],        [W/m/K],        [J/m^3/K],  [],                 []
     'mineral_soil'              : [[2.,         2.,            2.5e6,      1.2,                20]],
     'natural_soil'              : [[2.,         1.,             2.e6,      1.2,                20]],
-    'concrete10'                : [[.1,         1.75,           2.5e6,      1,                  10]],
-    'concrete10_insulation10'   : [[.1,         1.75,           2.5e6,      1.2,                10],
-                                   [.1,         .04,            5.e4,       1 / 1.2,            10]],
-    'insulation10_concrete10'   : [[.1,         .04,            5.e4,       1.2,                10],
-                                   [.1,         1.75,           2.5e6,      1 / 1.2,            10]],
-    'wood2'                     : [[.02,        .14,            1.25e6,     1,                  2]],
-    'wood2_insulation5_wood2'   : [[.02,        .14,            1.25e6,     1,                  2],
-                                   [.05,        .054,           1.57e5,     1,                  5],
-                                   [.02,        .14,            1.25e6,     1,                  2]],
-    'wood2_insulation10_wood2'  : [[.02,        .14,            1.25e6,     1,                  2],
-                                   [.1,         .054,           1.57e5,     1,                  5],
-                                   [.02,        .14,            1.25e6,     1,                  2]],
-    'tissue'                    : [[.001,       .2,             1.2e6,      1,                  2]]
 }
 
-trans_mat = 0.08
 trans_tree = 0.15
 facet_args_lib_dict = {
     #                      emissivity,          albedo,                 transmissivity_lw,  transmissivity_sw,  probe_direct_transmissivity_sw (for trees only, optional)
     'common_material'   : (0.95,                0.25,                   0.0,                0.0),
-    'trans_material'    : (0.95*(1-trans_mat),  0.25*(1-trans_mat),     trans_mat,          trans_mat),
     'tree_crown'        : (0.98*(1-trans_tree), 0.2*(1-trans_tree),     trans_tree,         trans_tree,         trans_tree/2),
 }
-
-shelter_core_mat_name = 'tissue'
-if shelter_core_mat_name == 'tissue':
-    shelter_facet_mat_name = 'trans_material'
-else:
-    shelter_facet_mat_name = 'common_material'
 
 # warning: all the panel names must be different !
 panel_def_dict_list = [
     {
-        'name'              : 'floor_inside_tree',
+        'name'              : 'floor_inside',
         'type'              : 'ground',
-        'mesh'              : geocase_dict['floor_inside_tree'],
+        'mesh'              : geocase_dict['floor_inside'],
         'core_args'         : core_args_lib_dict['natural_soil'],
         'front_facet_args'  : facet_args_lib_dict['common_material'],
         'back_facet_args'   : None,
         'front_airzone_name': 'under_tree',
-        'back_airzone_name' : None
-    },
-    {
-        'name'              : 'floor_inside_shelter',
-        'type'              : 'ground',
-        'mesh'              : geocase_dict['floor_inside_shelter'],
-        'core_args'         : core_args_lib_dict['mineral_soil'],
-        'front_facet_args'  : facet_args_lib_dict['common_material'],
-        'back_facet_args'   : None,
-        'front_airzone_name': 'under_shelter',
         'back_airzone_name' : None
     },
     {
@@ -194,16 +133,6 @@ panel_def_dict_list = [
         'back_airzone_name' : None
     },
     {
-        'name'              : 'building',
-        'type'              : 'building_set',
-        'mesh'              : geocase_dict['building'],
-        'core_args'         : core_args_lib_dict['concrete10_insulation10'],
-        'front_facet_args'  : facet_args_lib_dict['common_material'],
-        'back_facet_args'   : None,
-        'front_airzone_name': 'outdoor',
-        'back_airzone_name' : 'indoor'
-    },
-    {
         'name'              : 'tree',
         'type'              : 'tree',
         'mesh'              : geocase_dict['tree'],
@@ -211,17 +140,7 @@ panel_def_dict_list = [
         'front_facet_args'  : facet_args_lib_dict['tree_crown'],
         'back_facet_args'   : facet_args_lib_dict['tree_crown'],
         'front_airzone_name': 'outdoor',
-        'back_airzone_name' : 'under_shelter'
-    },
-    {
-        'name'              : 'shelter',
-        'type'              : 'shelter',
-        'mesh'              : geocase_dict['shelter'],
-        'core_args'         : core_args_lib_dict[shelter_core_mat_name],
-        'front_facet_args'  : facet_args_lib_dict[shelter_facet_mat_name],
-        'back_facet_args'   : facet_args_lib_dict[shelter_facet_mat_name],
-        'front_airzone_name': 'outdoor',
-        'back_airzone_name' : 'under_shelter'
+        'back_airzone_name' : 'under_tree'
     }
 ]
 
@@ -229,20 +148,15 @@ panel_def_dict_list = [
 #     {
 #         'name'        : 'probe',
 #         'mesh'        : [[0., 0., 1.]],
-#         'airzone_name': 'under_shelter',
+#         'airzone_name': 'under_tree',
 #     }
 # ]
 
 probe_set_def_list = [
     {
         'name'        : 'plane_ut',
-        'mesh'        : geocase_dict['probeset_inside_tree'],
-        'airzone_name': 'under_shelter',
-    },
-    {
-        'name'        : 'plane_us',
-        'mesh'        : geocase_dict['probeset_inside_shelter'],
-        'airzone_name': 'under_shelter',
+        'mesh'        : geocase_dict['probeset_inside'],
+        'airzone_name': 'under_tree',
     },
     {
         'name'        : 'plane_out',
