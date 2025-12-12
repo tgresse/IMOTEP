@@ -107,7 +107,7 @@ def main(general_dict,
 
 if __name__ == '__main__':
     ## load the inputs
-    from input.urban_scene import global_input_list
+    from input.demo_shelter_building_tree import global_input_list
 
     case_name_list = []
     case_name_base = None
