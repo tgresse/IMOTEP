@@ -10,16 +10,19 @@ from lib_post.visu_3D import visualize_fields
 # load results
 scene_folderpath_root = '../output/'
 
-scene_foldername_list = ["urban_scene"]
+scene_foldername_list = ['demo_shelter_building_tree'] # demo_tree, demo_shelter_building, demo_shelter_building_tree
 scene_list = []
 for scene_foldername in scene_foldername_list:
     with open(scene_folderpath_root + scene_foldername + '/imotep.pkl', 'rb') as data:
         scene_list.append(pkl.load(data))
 
-# nightimes
-# 14/07/2025
-sunrise_time_tuple = (5, 45)
-sunset_time_tuple = (19, 45)
+# nighttime
+# 14/07/2025 (Lyon)
+sunrise_time_tuple = (6, 15)
+sunset_time_tuple = (21, 30)
+# 14/07/2025 (Phoenix)
+# sunrise_time_tuple = (5, 45)
+# sunset_time_tuple = (19, 45)
 
 # save figures
 save = False
@@ -48,7 +51,7 @@ plot_comparative(scene_list=scene_list,
 # 'avg_lw_radiosity', 'avg_sw_radiosity')
 plot_comparative(scene_list=scene_list,
                  out_type='surface_averaged',
-                 obj_name='floor_inside_shelter_front',
+                 obj_name='floor_inside_shelter_front', # floor_inside_front ,floor_inside_shelter_front
                  var_name='avg_sw_rad_flux',
                  legend_label_list=scene_foldername_list,
                  figsize=(9, 6),
@@ -64,7 +67,7 @@ plot_comparative(scene_list=scene_list,
 # y-axis: variable ('tmrt', 'comfort_index', 'sw_flux_arr', 'lw_flux_arr', 'sun_exposure')
 plot_comparative(scene_list=scene_list,
                  out_type='probe',
-                 obj_name='plane_us_0',
+                 obj_name='plane_us_0', # plane_ut_0 ,plane_us_0, probe_0
                  var_name='tmrt',
                  legend_label_list=scene_foldername_list,
                  figsize=(9, 6),
