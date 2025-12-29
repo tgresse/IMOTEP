@@ -151,9 +151,9 @@ if __name__ == '__main__':
     sl = 12; sw = 12; sh = 4 # shelter length, width, height
     tr = 6.01; th = 4. # tree radius, height
     bl=40; bh = 20. # building length, height
-    geocase_dict = geocase_tree(tr, th)
-    # geocase_dict = geocase_shetler_building(sl, sw, sh, bl, bh)
-    # geocase_dict = geocase_shetler_building_tree(sl, sw, sh, tr, th, bl, bh)
+    # geocase_dict = geocase_tree(tr, th)
+    # geocase_dict = geocase_shelter_building(sl, sw, sh, bl, bh)
+    geocase_dict = geocase_shelter_building_tree(sl, sw, sh, tr, th, bl, bh)
 
     plotter = pv.Plotter()
 
