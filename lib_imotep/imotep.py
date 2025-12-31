@@ -721,16 +721,15 @@ class IMOTEP:
 
 if __name__ == '__main__':
 
-    # TODO : update example
-    pass
-    
-    # # create the state object
-    # imotep = IMOTEP(general_dict,
-    #                 weather_def_dict,
-    #                 panel_def_dict_list,
-    #                 airzone_def_dict_list,
-    #                 probe_set_def_list,
-    #                 output_def_dict)
+    from input.demo_shelter_building_tree import general_dict, weather_def_dict, panel_def_dict_list, airzone_def_dict_list, probe_set_def_list, output_def_dict
+
+    # create the state object
+    imotep = IMOTEP(general_dict,
+                    weather_def_dict,
+                    panel_def_dict_list,
+                    airzone_def_dict_list,
+                    probe_set_def_list,
+                    output_def_dict)
     #
     # imotep.weather = Weather.agile_constructor(imotep.weather_def_dict, imotep.general_dict)
     #

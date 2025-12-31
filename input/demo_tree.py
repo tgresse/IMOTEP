@@ -1,5 +1,3 @@
-import sys
-sys.path.insert(1, r'lib_pre/geometry')
 import math
 
 import lib_pre.wind.wind_factors as wind_factors
