@@ -33,12 +33,14 @@
 # The fact that you are presently reading this means that you have had
 # knowledge of the CeCILL license and that you accept its terms.
 
-from geogen import *
+import lib_pre.geometry.geogen as gg
+import numpy as np
+import pyvista as pv
 
 #-----------------------------------------------------------------------------------------------------------------------
 #shelter geometries
 def geomorph_flat_shelter(x_min, x_max, y_min, y_max, h, dx=None, dy=None):
-    shelter = geogen_hrect(x_min=x_min, x_max=x_max,
+    shelter = gg.geogen_hrect(x_min=x_min, x_max=x_max,
                            y_min=y_min, y_max=y_max,
                            h=h,
                            dx=dx, dy=dy)
@@ -60,28 +62,28 @@ def geomorph_flat_shelter_with_sides(x_min, x_max, y_min, y_max, h_min, h_max, s
                                       dx=dx, dy=dy)]
 
     if sides_orientation in ('east', 'east-west', 'east-west-north-south'):
-        mesh_list.append(geogen_vrect(x_0=x_min, x_1=x_min,
+        mesh_list.append(gg.geogen_vrect(x_0=x_min, x_1=x_min,
                                       y_0=y_min, y_1=y_max,
                                       h_min=h_min, h_max=h_max,
                                       front_left=True,
                                       ds=dy, dh=dz))
 
     if sides_orientation in ('west', 'east-west', 'east-west-north-south'):
-        mesh_list.append(geogen_vrect(x_0=x_max, x_1=x_max,
+        mesh_list.append(gg.geogen_vrect(x_0=x_max, x_1=x_max,
                                       y_0=y_min, y_1=y_max,
                                       h_min=h_min, h_max=h_max,
                                       front_left=False,
                                       ds=dy, dh=dz))
 
     if sides_orientation in ('north', 'north-south', 'east-west-north-south'):
-        mesh_list.append(geogen_vrect(x_0=x_min, x_1=x_max,
+        mesh_list.append(gg.geogen_vrect(x_0=x_min, x_1=x_max,
                                       y_0=y_min, y_1=y_min,
                                       h_min=h_min, h_max=h_max,
                                       front_left=False,
                                       ds=dx, dh=dz))
 
     if sides_orientation in ('south', 'north-south', 'east-west-north-south'):
-        mesh_list.append(geogen_vrect(x_0=x_min, x_1=x_max,
+        mesh_list.append(gg.geogen_vrect(x_0=x_min, x_1=x_max,
                                       y_0=y_max, y_1=y_max,
                                       h_min=h_min, h_max=h_max,
                                       front_left=True,
@@ -158,23 +160,23 @@ def geomorph_gable_shelter(x_min, x_max, y_min, y_max, h_min, angle, orientation
             print(f"    [Warning] The length of the tilted rectangle is not multiple of the step (j_size={j_size}, "
                   f"dy={dy} -> j_res={j_res}).")
 
-    mesh_list = [build_plane(center_plus, n_plus, i_size, j_size, i_res, j_res),
-                 build_plane(center_minus, n_minus, i_size, j_size, i_res, j_res)]
+    mesh_list = [gg.build_plane(center_plus, n_plus, i_size, j_size, i_res, j_res),
+                 gg.build_plane(center_minus, n_minus, i_size, j_size, i_res, j_res)]
 
     shelter = pv.merge(mesh_list)
 
     return shelter
 
 def geomorph_tree(origin, radius, dr, ds):
-    tree_base = geogen_hdisc(origin=origin, radius=radius, dr=dr, ds=ds)
-    tree_crown = geogen_hhemisphere(origin, radius, dr, ds)
+    tree_base = gg.geogen_hdisc(origin=origin, radius=radius, dr=dr, ds=ds)
+    tree_crown = gg.geogen_hhemisphere(origin, radius, dr, ds)
 
     return tree_base, tree_crown
 
 #-----------------------------------------------------------------------------------------------------------------------
 # floor geometries
 def geomorph_flat_floor(x_min, x_max, y_min, y_max, dx=None, dy=None):
-    floor = geogen_hrect(x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, h=0, dx=dx, dy=dy)
+    floor = gg.geogen_hrect(x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, h=0, dx=dx, dy=dy)
 
     return floor
 
@@ -188,7 +190,7 @@ def geomorph_building(x_0, x_1,
     if h_min == h_max:
         raise ValueError(' A single building surface cannot have zero height (h_min == h_max).')
 
-    build = geogen_vrect(x_0, x_1, y_0, y_1, h_min, h_max, front_left, ds, dh)
+    build = gg.geogen_vrect(x_0, x_1, y_0, y_1, h_min, h_max, front_left, ds, dh)
 
     return build
 
@@ -198,7 +200,7 @@ def geomorph_roof(x_min, x_max,
                   dx=None, dy=None):
 
     ndir = [0., 0., -1]
-    build = geogen_hrect(x_min, x_max, y_min, y_max, h, dx, dy, ndir)
+    build = gg.geogen_hrect(x_min, x_max, y_min, y_max, h, dx, dy, ndir)
 
     return build
 
@@ -221,7 +223,7 @@ def geomorph_building_with_overhang(x_0, x_1,
                                       y_0=y_0, y_1=y_1,
                                       h_min=h_min+h_side, h_max=h_max,
                                       front_left=front_left)]
-        build = geogen_merge(build_list)
+        build = gg.geogen_merge(build_list)
     else:
         build = geomorph_building(x_0=x_0, x_1=x_1,
                                 y_0=y_0, y_1=y_1,
@@ -359,7 +361,7 @@ def geomorph_buffer(in_x_min, in_x_max, in_y_min, in_y_max, x_margin, y_margin=N
     out_y_min = in_y_min - y_margin
     out_y_max = in_y_max + y_margin
 
-    buffer = geogen_hrect_ring(in_x_min, in_x_max, in_y_min, in_y_max, out_x_min, out_x_max, out_y_min, out_y_max, dx, dy)
+    buffer = gg.geogen_hrect_ring(in_x_min, in_x_max, in_y_min, in_y_max, out_x_min, out_x_max, out_y_min, out_y_max, dx, dy)
 
     return buffer
 

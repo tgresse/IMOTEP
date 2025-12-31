@@ -34,7 +34,6 @@
 # knowledge of the CeCILL license and that you accept its terms.
 
 import sys
-sys.path.insert(1, r'lib_imotep')
 import datetime
 
 from lib_imotep.utils import global_timer, SaveFolderManager, StreamManager
@@ -107,7 +106,10 @@ def main(general_dict,
 
 if __name__ == '__main__':
     ## load the inputs
+    # from input.demo_shelter_building import global_input_list
+    # from input.demo_tree import global_input_list
     from input.demo_shelter_building_tree import global_input_list
+
 
     case_name_list = []
     case_name_base = None

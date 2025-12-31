@@ -3,7 +3,7 @@ sys.path.insert(1, r'lib_pre/geometry')
 import math
 
 import lib_pre.wind.wind_factors as wind_factors
-import lib_pre.geometry.geocase as geocase
+import input.geocase as geocase
 
 # load the geocase dictionary
 sl = 12; sw = 12; sh = 4 # shelter length, width, height

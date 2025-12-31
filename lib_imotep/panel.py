@@ -33,8 +33,8 @@
 # The fact that you are presently reading this means that you have had
 # knowledge of the CeCILL license and that you accept its terms.
 
-from core import CoreProperties, CoreSingleFacet, CoreDoubleFacet
-from surface import Surface
+from lib_imotep.core import CoreProperties, CoreSingleFacet, CoreDoubleFacet
+from lib_imotep.surface import Surface
 
 def generate_panel_list(panel_def_dict_list):
     valid_panel_type_list = ['ground', 'building', 'building_set', 'shelter', 'tree']

@@ -39,15 +39,15 @@ import pandas as pd
 import pickle as pkl
 from scipy.interpolate import RegularGridInterpolator
 
-from utils import global_timer
-from weather import Weather
-from airzone import generate_airzone_list, AirZone, FixedAirZone
-from panel import generate_panel_list
-from surface import Surface
-from facet import Facet
-from probe import generate_probe_set_list, Probe
-from radiative_sys_geom import RadiativeSystemGeometry
-from radiative_model import RadiativeModel
+from lib_imotep.utils import global_timer
+from lib_imotep.weather import Weather
+from lib_imotep.airzone import generate_airzone_list, AirZone, FixedAirZone
+from lib_imotep.panel import generate_panel_list
+from lib_imotep.surface import Surface
+from lib_imotep.facet import Facet
+from lib_imotep.probe import generate_probe_set_list, Probe
+from lib_imotep.radiative_sys_geom import RadiativeSystemGeometry
+from lib_imotep.radiative_model import RadiativeModel
 
 class IMOTEP:
     """
@@ -720,16 +720,18 @@ class IMOTEP:
 
 
 if __name__ == '__main__':
-    from _input_shelter_old import general_dict, weather_def_dict, panel_def_dict_list, airzone_def_dict_list, probe_set_def_list, output_def_dict
 
-    # create the state object
-    imotep = IMOTEP(general_dict,
-                    weather_def_dict,
-                    panel_def_dict_list,
-                    airzone_def_dict_list,
-                    probe_set_def_list,
-                    output_def_dict)
-
-    imotep.weather = Weather.agile_constructor(imotep.weather_def_dict, imotep.general_dict)
-
-    imotep._generate_time_parameters()
+    # TODO : update example
+    pass
+    
+    # # create the state object
+    # imotep = IMOTEP(general_dict,
+    #                 weather_def_dict,
+    #                 panel_def_dict_list,
+    #                 airzone_def_dict_list,
+    #                 probe_set_def_list,
+    #                 output_def_dict)
+    #
+    # imotep.weather = Weather.agile_constructor(imotep.weather_def_dict, imotep.general_dict)
+    #
+    # imotep._generate_time_parameters()
