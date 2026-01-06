@@ -37,7 +37,8 @@ from numba import njit
 import numpy as np
 import quadpy
 import trimesh
-from utils import global_timer
+
+from lib_imotep.utils import global_timer
 
 class RadiativeSystemGeometry:
 
